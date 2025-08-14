@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Tracker Control</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f0f2f5; }
+        h1 { color: #1c1e21; }
+        .container { max-width: 500px; margin: 0 auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .data-grid, .controls, .calibration-grid { display: grid; gap: 10px; margin-bottom: 20px; }
+        .data-grid { grid-template-columns: 1fr 1fr; text-align: left; }
+        .data-grid span:nth-child(odd) { font-weight: bold; }
+        .data-grid span:nth-child(even) { text-align: right; }
+        .boolean-true { color: #31a24c; font-weight: bold; }
+        .boolean-false { color: #e02c4d; font-weight: bold; }
+        button { background-color: #1877f2; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #166fe5; }
+        .btn-stop { background-color: #e02c4d; }
+        .btn-stop:hover { background-color: #c92442; }
+        .calibration-grid { grid-template-columns: 1fr 1fr 1fr; }
+        .calibration-grid .up, .calibration-grid .down, .calibration-grid .speed { grid-column: 2; } /* Center these buttons */
+        #calibrationSection { display: block; }  /* was none */
+        h2 { border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        #errorText { white-space: pre-line; } /* to allow \n for a line break */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ESP32 Tracker Control</h1>
+        
+        <h2>Object Data</h2>
+        <div class="data-grid">
+            <span>Name:</span>               <span id="name">--</span>
+            <span>Altitude:</span>           <span id="altitude">--</span>
+            <span>Azimuth:</span>            <span id="azimuth">--</span>
+            <span>Visible:</span>            <span id="visible">--</span>
+            <span>Valid Data:</span>         <span id="valid">--</span>
+        </div>
+
+        <h2>Controls</h2>
+        <div class="controls">
+            <button id="trackingButton">Start Tracking</button>
+        </div>
+
+        <div id="calibrationSection">
+            <h2>Calibration</h2>
+            <div class="calibration-grid">
+                <span></span><button class="up" onclick="sendCalibrateCommand('up')">Up</button><span></span>
+                <button class="left" onclick="sendCalibrateCommand('left')">Left</button>
+                <button class="ok" onclick="sendCalibrateCommand('ok')">OK</button>
+                <button class="right" onclick="sendCalibrateCommand('right')">Right</button>
+                <span></span><button class="down" onclick="sendCalibrateCommand('down')">Down</button><span></span>
+                <!-- NEW SPEED BUTTON -->
+                <span></span><button id="speedButton" class="speed">Speed: 1</button><span></span>
+                <span></span><button id="directionButton" class="direction">North</button><span></span>
+            
+            </div>
+        </div>
+
+        <div id="errorSection">
+            <h2>Errors</h2>
+            <p id="errorText"></p>
+        </div>
+    </div>
+
+<script>
+    // State variable for speed ---
+    let currentSpeed = 1;
+    // State for calibration direction 0=north, 1=south
+    let currentDirection = 0;
+
+    // --- (updateBooleanField function is the same as before) ---
+    function updateBooleanField(elementId, value) {
+        const el = document.getElementById(elementId);
+        el.textContent = value ? 'Yes' : 'No';
+        el.className = value ? 'boolean-true' : 'boolean-false';
+    }
+
+    // --- (fetchData function is the same as before) ---
+    async function fetchData() {
+        try {
+            const response = await fetch('/data');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+
+            document.getElementById('name').textContent = data.name || 'N/A';
+            if (typeof data.altitude === 'number') {
+                document.getElementById('altitude').textContent = data.altitude.toFixed(2) + '°';
+            } else {
+                document.getElementById('altitude').textContent = '--';
+            }
+            if (typeof data.azimuth === 'number') {
+                document.getElementById('azimuth').textContent = data.azimuth.toFixed(2) + '°';
+            } else {
+                document.getElementById('azimuth').textContent = '--';
+            }
+
+            document.getElementById('errorText').textContent = data.error;
+
+            updateBooleanField('visible', data.visible);
+            updateBooleanField('valid', data.valid);
+            
+            const trackingButton = document.getElementById('trackingButton');
+            const calibrationSection = document.getElementById('calibrationSection');
+            if (data.tracking) {
+                trackingButton.textContent = 'Stop Tracking';
+                trackingButton.className = 'btn-stop';
+                //calibrationSection.style.display = 'none';    // Always visible
+            } else {
+                trackingButton.textContent = 'Start Tracking';
+                trackingButton.className = '';
+                //calibrationSection.style.display = 'block';   // Always visible
+            }
+        } catch (error) {
+            console.error("Could not fetch or process data:", error);
+            document.getElementById('name').textContent = "";
+            document.getElementById('altitude').textContent = '--';
+            document.getElementById('azimuth').textContent = '--';
+            updateBooleanField('visible', 0);
+            updateBooleanField('valid', 0);
+            trackingButton.textContent = 'Start Tracking';
+            trackingButton.className = '';
+            calibrationSection.style.display = 'block';
+        }
+    }
+
+    // --- (toggleTracking function is the same as before) ---
+    async function toggleTracking() {
+        try {
+            await fetch('/tracking', { method: 'POST' });
+            fetchData();
+        } catch (error) {
+            console.error("Could not toggle tracking:", error);
+        }
+    }
+
+    // --- MODIFIED: sendCalibrateCommand now sends speed ---
+    async function sendCalibrateCommand(direction) {
+        // The 'ok' command does not need a speed parameter
+        const url = (direction === 'ok')
+            ? `/calibrate?dir=${direction}&north=${currentDirection}`
+            : `/calibrate?dir=${direction}&speed=${currentSpeed}&north=${currentDirection}`;
+            
+        try {
+            await fetch(url);
+            console.log(`Sent command: ${direction} with speed ${currentSpeed} and direction = ${currentDirection}`);
+        } catch(error) {
+            console.error(`Could not send command ${direction}:`, error);
+        }
+    }
+
+    // --- Function to handle speed button clicks ---
+    function cycleSpeed() {
+        if (currentSpeed === 1) {
+            currentSpeed = 10;
+        } else if (currentSpeed === 10) {
+            currentSpeed = 100;
+        } else {
+            currentSpeed = 1;
+        }
+        // Update the button text to reflect the new speed
+        document.getElementById('speedButton').textContent = `Speed: ${currentSpeed}`;
+    }
+
+    function toggleDirection() {
+        let dirText = '';
+        if (currentDirection === 0) {
+            currentDirection = 1;
+            dirText = 'South';
+        } else {
+            currentDirection = 0;
+            dirText = 'North';
+        }
+        document.getElementById('directionButton').textContent = `${dirText}`;
+    }
+
+    // --- MODIFIED: Add event listeners on load ---
+    window.onload = () => {
+        // Add click listener for the tracking button
+        document.getElementById('trackingButton').addEventListener('click', toggleTracking);
+
+        // --- NEW: Add click listener for the speed button ---
+        document.getElementById('speedButton').addEventListener('click', cycleSpeed);
+        document.getElementById('directionButton').addEventListener('click', toggleDirection);
+
+        // Initial data fetch and set interval to poll every second
+        fetchData();
+        setInterval(fetchData, 1000);
+    };
+</script>
+</body>
+</html>
