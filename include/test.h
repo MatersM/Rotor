@@ -2,6 +2,11 @@
 #include <Arduino.h>
 #include <ESP32ServoLite.h>
 
+
+/*
+This is only used for testing purposes.
+*/
+
 void test(int pin1, int pin2) {
     log_d("****** TEST STARTED ******");
     log_d("Pin 1 (Servo)=%d Pin 2 (Digital)=%d",pin1,pin2);
@@ -29,7 +34,7 @@ void test(int pin1, int pin2) {
     
     pinMode(pin2,OUTPUT);
 
-    Serial.println("Servo attached and pulse sent");
+    log_d("Servo attached and pulse sent");
 
     int counter = 0;
     while (true) {

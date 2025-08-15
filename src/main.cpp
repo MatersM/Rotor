@@ -9,10 +9,8 @@
 #include <objectData.h>
 #include <stellarium.h>
 #include <rotorservo.h>
-// Sometime used for debug purposes
-//#include <test.h>
 
-#define VERSION "0.3.1 (14-AUG 2025)"
+#define VERSION "0.4.1 (15-AUG 2025)"
 
 extern "C" {
   #include "esp_wifi.h"
@@ -67,8 +65,8 @@ void readInitConfig() {
     auto eepromAddress = 0;
     auto pin      = config.get("pin","PIN_SERVO_ALT","0").toInt();
     auto degrees  = config.get("servo","SERVO_ALT_DEGREES","0").toInt();
-    auto min      = config.get("servo","SERVO_ALT_MIN","0").toInt();
-    auto max      = config.get("servo","SERVO_ALT_MAX","0").toInt();
+    auto min      = config.get("servo","SERVO_ALT_MIN","500").toInt();
+    auto max      = config.get("servo","SERVO_ALT_MAX","2500").toInt();
     auto direction= config.get("servo","SERVO_ALT_DIRECTION","1").toInt();
     auto offset   = config.get("servo","SERVO_ALT_OFFSET","0.0").toFloat();
     bool smooth   = config.get("servo","SERVO_ALT_SMOOTH","1").toInt();
@@ -80,8 +78,8 @@ void readInitConfig() {
     eepromAddress = 4;
     pin      = config.get("pin","PIN_SERVO_AZ","0").toInt();
     degrees  = config.get("servo","SERVO_AZ_DEGREES","0").toInt();
-    min      = config.get("servo","SERVO_AZ_MIN","0").toInt();
-    max      = config.get("servo","SERVO_AZ_MAX","0").toInt();
+    min      = config.get("servo","SERVO_AZ_MIN","500").toInt();
+    max      = config.get("servo","SERVO_AZ_MAX","2500").toInt();
     direction= config.get("servo","SERVO_AZ_DIRECTION","1").toInt();
     offset   = config.get("servo","SERVO_AZ_OFFSET","0.0").toFloat();
     smooth   = config.get("servo","SERVO_AZ_SMOOTH","1").toInt();
@@ -106,10 +104,9 @@ void setTracking(bool t) {
 // Callback function for the server code
 // When tracking this is a calibration adjustment
 void setCalibrartion(CalibrationData &serverData) {
-  Serial.printf("Calibrate: ");
   switch (serverData.command) {
     case CC_OK: {
-      Serial.printf( "OK North=%d\n", serverData.direction);
+      log_i( "Calibrate: OK North=%d", serverData.direction);
       if (data.tracking) break; // Don't do anything if tracking
       // Oke, now set the calibration data
       servoALT.calibrate();
@@ -120,28 +117,28 @@ void setCalibrartion(CalibrationData &serverData) {
       break;
     }
     case CC_LEFT:
-      Serial.printf("LEFT - %d North=%d\n", serverData.speed, serverData.direction);
+      log_i("Calibrate: LEFT - %d North=%d", serverData.speed, serverData.direction);
       if (data.tracking)
         servoAZ.recalibrate(-serverData.speed);
       else
         servoAZ.move(-serverData.speed);
       break;
     case CC_RIGHT:
-      Serial.printf("RIGHT - %d North=%d\n", serverData.speed, serverData.direction);
+      log_i("Calibrate: RIGHT - %d North=%d", serverData.speed, serverData.direction);
       if (data.tracking)
         servoAZ.recalibrate(serverData.speed);
       else
         servoAZ.move(serverData.speed);
       break;
     case CC_UP:
-      Serial.printf("UP - %d North=%d\n", serverData.speed, serverData.direction);
+      log_i("Calibrate: UP - %d North=%d", serverData.speed, serverData.direction);
       if (data.tracking)
         servoALT.recalibrate(serverData.speed);
       else
         servoALT.move(serverData.speed);
       break;
     case CC_DOWN:
-      Serial.printf("DOWN - %d North=%d\n", serverData.speed, serverData.direction);
+      log_i("Calibrate: DOWN - %d North=%d", serverData.speed, serverData.direction);
       if (data.tracking)
         servoALT.recalibrate(-serverData.speed);
       else
@@ -150,11 +147,18 @@ void setCalibrartion(CalibrationData &serverData) {
   }
 }
 
+// Only continue if the setup was successful
+bool setupSucces;
+
 void setup() {
+
+  setupSucces = false;
+
   Serial.begin(115200);
   delay(100);
   if (!SPIFFS.begin(true)) {
-      log_e("SPIFFS mount failed");
+      log_e("SPIFFS mount failed => Not usefull to continue");
+      ledAction(ledErrorBlink);
       return;
   }
 
@@ -166,13 +170,8 @@ void setup() {
 
   log_i("%s version %s.\n",build,VERSION);
 
-  ledAction(ledFastBlink);
   readInitConfig(); 
   setupWiFiAP();
-
-  unsigned int timer=millis();
-
-  while (millis()-timer<5000) ledAction();
   ledAction(ledOff);
 
   setCallBack(setTracking);
@@ -188,6 +187,8 @@ void setup() {
       NULL,            // Task handle
       0);              // Pin to Core 0
 
+
+  setupSucces = true;
   log_i("Setup() is complete. Main loop will run on Core 1. Server runs on Core 0");
 }
 
@@ -198,10 +199,13 @@ void loop() {
   loopCounter++;
   ledAction();
 
+  // Don't continue if the setup failed (probably because of a SPIFFS error), led should be very fast "bleeping"
+  if (!setupSucces) return;
+
   // Clear errorString after a while
   clearError();
 
-  // Move servo's to their target location very smoothly....
+  // Move servo's to their target location very smoothly only does something if smooth=1 in config.ini ....
   if (!servoAZ.run()) {
     addError("Failed to track azimuth");
   }
@@ -247,10 +251,10 @@ void loop() {
       }
 
     } else {
-      ledAction(ledFastBlink);
+      ledAction(ledBlink);
       data.tracking = false;
       addError("Invalid data. Stop Tracking.");
-      Serial.println("Invalid data. Stop tracking");
+      log_i("Invalid data. Stop tracking");
     }
 
     if (!data.visible) data.tracking = false;

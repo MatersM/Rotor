@@ -6,14 +6,16 @@ enum LEDACTION {
   ledOff,
   ledBlink,
   ledFastBlink,
+  ledErrorBlink,
   ledDummy=0xFF
 };
 
 std::tuple<int, int> ledArray[] = {
     // on-time, off-time in ms
     {0, 1000000},   // Off
-    {1000, 1000}, // Normal blink
-    {250, 250}    // Fast Blink
+    {1000, 1000},   // Normal blink
+    {250, 250},     // Fast Blink
+    {100, 250}       // Error blink
 };
 
 void ledAction(LEDACTION led_action=ledDummy) {
