@@ -9,10 +9,10 @@
 #include <objectData.h>
 #include <stellarium.h>
 #include <rotorservo.h>
-#include <test.h>
+// Sometime used for debug purposes
+//#include <test.h>
 
-//#define TEST
-#define VERSION "0.3.0 (13-AUG 2025)"
+#define VERSION "0.3.1 (14-AUG 2025)"
 
 extern "C" {
   #include "esp_wifi.h"
@@ -29,21 +29,6 @@ RotorServo servoAZ, servoALT;
 const char *iniPath = "/config.ini";
 #define DEFAULT_SSID "ESP32-Hotspot"
 #define DEFAULT_PASSWORD "12345678"
-
-#ifdef TEST
-std::tuple<int,int> getPins() {
-    INIConfig config;
-    if (config.load(iniPath)) {
-        Serial.printf("Open ini file %s\n",iniPath);
-        auto pin1      = config.get("pin","PIN_SERVO_ALT","0").toInt();        
-        auto pin2      = config.get("pin","PIN_SERVO_AZ","0").toInt();
-        return {pin1, pin2};
-      }
-      
-      Serial.printf("Could not open %s\n",iniPath);
-      return {0,0};
-}
-#endif
 
 String errorString = "";
 unsigned long errorTime = 0;
@@ -64,52 +49,53 @@ if (millis()-errorTime>5000) errorString = "";
 /// @brief Read config parameters from ini file and init servo's
 void readInitConfig() {
     INIConfig config;
-    if (config.load(iniPath)) {
-        Serial.printf("Open ini file %s\n",iniPath);
 
-        // Read AP settings
-        ssid = config.get("network", "WIFI_SSID", DEFAULT_SSID);
-        password = config.get("network", "WIFI_PASSWORD", DEFAULT_PASSWORD);
-        Serial.println("SSID: " + ssid);
-        Serial.println("Password: " + password);
-
-        // Read the servo stuff and init those as well
-
-	      //ESP32PWM::allocateTimer(0);
-	      //ESP32PWM::allocateTimer(1); 
-
-        auto eepromAddress = 0;
-        auto pin      = config.get("pin","PIN_SERVO_ALT","0").toInt();
-        auto degrees  = config.get("servo","SERVO_ALT_DEGREES","0").toInt();
-        auto min      = config.get("servo","SERVO_ALT_MIN","0").toInt();
-        auto max      = config.get("servo","SERVO_ALT_MAX","0").toInt();
-        auto direction= config.get("servo","SERVO_ALT_DIRECTION","1").toInt();
-        auto offset   = config.get("servo","SERVO_ALT_OFFSET","0.0").toFloat();
-
-        servoALT.init(pin,eepromAddress,min,max,degrees,direction,offset);
-        addError(servoALT.getError());
-
-        eepromAddress = 4;
-        pin      = config.get("pin","PIN_SERVO_AZ","0").toInt();
-        degrees  = config.get("servo","SERVO_AZ_DEGREES","0").toInt();
-        min      = config.get("servo","SERVO_AZ_MIN","0").toInt();
-        max      = config.get("servo","SERVO_AZ_MAX","0").toInt();
-        direction= config.get("servo","SERVO_AZ_DIRECTION","1").toInt();
-        offset   = config.get("servo","SERVO_AZ_OFFSET","0.0").toFloat();
-
-        servoAZ.init(pin,eepromAddress,min,max,degrees,direction,offset);
-        addError(servoAZ.getError());
-        
-    } else {
-      Serial.printf("Could not open %s\n",iniPath);
+    if (!config.load(iniPath)) {
+      log_e("Could not open %s\n",iniPath);
+      return;
     }
+
+    log_i("Open ini file %s\n",iniPath);
+
+    // Read AP settings
+    ssid = config.get("network", "WIFI_SSID", DEFAULT_SSID);
+    password = config.get("network", "WIFI_PASSWORD", DEFAULT_PASSWORD);
+    log_i("SSID: %s", ssid);
+    log_i("Password: %s", password);
+
+    // Read the servo stuff and init those as well
+    auto eepromAddress = 0;
+    auto pin      = config.get("pin","PIN_SERVO_ALT","0").toInt();
+    auto degrees  = config.get("servo","SERVO_ALT_DEGREES","0").toInt();
+    auto min      = config.get("servo","SERVO_ALT_MIN","0").toInt();
+    auto max      = config.get("servo","SERVO_ALT_MAX","0").toInt();
+    auto direction= config.get("servo","SERVO_ALT_DIRECTION","1").toInt();
+    auto offset   = config.get("servo","SERVO_ALT_OFFSET","0.0").toFloat();
+    bool smooth   = config.get("servo","SERVO_ALT_SMOOTH","1").toInt();
+
+    servoALT.init(pin,eepromAddress,min,max,degrees,direction,offset);
+    addError(servoALT.getError());
+    servoALT.smooth(smooth);
+
+    eepromAddress = 4;
+    pin      = config.get("pin","PIN_SERVO_AZ","0").toInt();
+    degrees  = config.get("servo","SERVO_AZ_DEGREES","0").toInt();
+    min      = config.get("servo","SERVO_AZ_MIN","0").toInt();
+    max      = config.get("servo","SERVO_AZ_MAX","0").toInt();
+    direction= config.get("servo","SERVO_AZ_DIRECTION","1").toInt();
+    offset   = config.get("servo","SERVO_AZ_OFFSET","0.0").toFloat();
+    smooth   = config.get("servo","SERVO_AZ_SMOOTH","1").toInt();
+
+    servoAZ.init(pin,eepromAddress,min,max,degrees,direction,offset);
+    addError(servoAZ.getError());
+    servoAZ.smooth(smooth);
+
 }
 
 void setupWiFiAP() {
   WiFi.softAP(ssid.c_str(), password.c_str());
-  Serial.println("Access Point started");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.softAPIP());
+  log_i("Access Point started");
+  log_i("IP address: %s", WiFi.softAPIP());
 }
 
 // Callback function for the server code
@@ -168,17 +154,9 @@ void setup() {
   Serial.begin(115200);
   delay(100);
   if (!SPIFFS.begin(true)) {
-      Serial.println("SPIFFS mount failed");
+      log_e("SPIFFS mount failed");
       return;
   }
-
-#ifdef TEST
-//    auto [pin1, pin2] = getPins(); // gnu++17, so not for here
-    auto pins = getPins();
-    int pin1 = std::get<0>(pins);
-    int pin2 = std::get<1>(pins);
-    test(pin1, pin2);
-#endif
 
 #ifdef DEBUG_BUILD
   constexpr const char* build = "Debug build";
@@ -186,8 +164,7 @@ void setup() {
   constexpr const char* build = "Release build";
 #endif
 
-Serial.printf("%s version %s.\n",build,VERSION);
-
+  log_i("%s version %s.\n",build,VERSION);
 
   ledAction(ledFastBlink);
   readInitConfig(); 
@@ -211,12 +188,14 @@ Serial.printf("%s version %s.\n",build,VERSION);
       NULL,            // Task handle
       0);              // Pin to Core 0
 
-  Serial.println("Setup() is complete. Main loop will run on Core 1. Server runs on Core 0");
+  log_i("Setup() is complete. Main loop will run on Core 1. Server runs on Core 0");
 }
 
 void loop() {
   static unsigned long lastCheck = 0;
+  static unsigned long loopCounter = 0;
   
+  loopCounter++;
   ledAction();
 
   // Clear errorString after a while
@@ -231,9 +210,9 @@ void loop() {
     addError("Failed to track altitude");
   }
 
-  if (millis() - lastCheck > 2000) {  // every 2s
+  if (millis() - lastCheck > 1000) {  // every second
 
-    log_i("*** INFO ***");
+    log_i("****** INFO ******");
     log_i("AZ  target=%0.2f (%4d)",servoAZ.getDegrees(),  servoAZ.getTarget());
     log_i("ALT target=%0.2f (%4d)", servoALT.getDegrees(),  servoALT.getTarget());
 
@@ -248,11 +227,13 @@ void loop() {
 
     if (data.valid) {
       ledAction(ledOff);
-      Serial.printf("Object\t: %s\n",data.name);
-//      Serial.printf("Alt\t: %0.4f\n",data.altitude);
-//      Serial.printf("Az\t: %0.4f\n",data.azimuth);
-//      Serial.printf("Visible\t: %d\n",data.visible);
-
+      if (loopCounter%5==0) { // Every 5 seconds
+        log_i("****** OBJECT ******");
+        log_i("Object\t: %s",data.name);
+        log_i("Altitude\t: %0.4f",data.altitude);
+        log_i("Azimuth\t: %0.4f",data.azimuth);
+        log_i("Visible\t: %d",data.visible);
+      }
       // When tracking move it!
       if (data.tracking) {
         if (!servoALT.moveToDegrees(data.altitude)) {

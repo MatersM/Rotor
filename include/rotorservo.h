@@ -134,6 +134,9 @@ public:
             log_e("%s", _errorString.c_str());
             return false;
         }
+
+        if (!_smooth) _moveQuick();
+
         return true;
     }
 
@@ -162,11 +165,12 @@ public:
             return false;
         }
 
+        if (!_smooth) _moveQuick();
 
         return true;    
     }
 
-    bool moveToDegrees(int16_t degrees) {
+    bool moveToDegrees(float degrees) {
         _errorString = "";
 
         if (!_init) {
@@ -199,8 +203,10 @@ public:
             return false;
         }
 
-
         _targetPulse = y;
+
+        if (!_smooth) _moveQuick();
+
         return true;
     }
 
@@ -244,7 +250,14 @@ public:
         if (_targetPulse<_min) _targetPulse = _min;
         if (_targetPulse>_max) _targetPulse = _max;
 
+        if (!_smooth) _moveQuick();
         return true;
+    }
+
+    void smooth(bool smooth) {
+        _smooth = smooth;
+        if (!_smooth) _moveQuick();
+    
     }
 
     bool run() {
@@ -316,6 +329,12 @@ public:
     String getError() { return _errorString; }
 
 private:
+
+    void _moveQuick() {
+        _currentPulse = _targetPulse;
+        _servo.writeMicroseconds(_currentPulse);
+    }
+
     ESP32ServoLite _servo;
     bool    _init = false, _calibrated = false;
     int16_t _min, _max, _degrees;
@@ -323,5 +342,6 @@ private:
     int8_t  _pin, _direction = 1, _eepromAddress;
     int16_t _currentPulse, _targetPulse, _calibration=0;
     String  _errorString = "" ;
+    bool    _smooth = false;
 
 };

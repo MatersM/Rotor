@@ -1,7 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include <ESP32Servo.h>
-
+#include <ESP32ServoLite.h>
 
 void test(int pin1, int pin2) {
     log_d("****** TEST STARTED ******");
