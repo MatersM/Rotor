@@ -52,7 +52,7 @@ Once the ESP32 is running:
 2. Make sure that Stellarium is running on your laptop and that the Stellarium Remote Control Plug-in is activated on port 8090 without Username and Password.
 3. Visit the Control Pannel (http://192.168.4.1) in your web-browser.
   
-When you select an object in Stellarium, the name of the object and the ALT/AZ coordinated should be visible in the Control Pannel in your browser. It should be looking someting like this:
+When you select an object in Stellarium, the name of the object and the ALT/AZ coordinates should be visible in the Control Pannel in your browser. It should be looking someting like this:
 
 <p align="center">
 <img src="resources/webInterface.png" alt="Rotor web interface" width="300">
