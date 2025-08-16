@@ -9,7 +9,6 @@ extern "C" {
   #include "esp_netif.h"
 }
 
-
 struct ObjectData {
   float altitude = 0.0; // Was NAN
   float azimuth = 0.0; // Was NAN
@@ -18,6 +17,8 @@ struct ObjectData {
   bool valid = false;
   bool tracking = false;
   String error = "";
+  // Current Servo direction
+  float currAlt = 0.0, currAz = 0.0;
 };
 
 /// @brief Helper function, assumption is that only one device is connected to the AP

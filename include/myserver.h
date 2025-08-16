@@ -73,6 +73,8 @@ void handleData() {
     doc["valid"] = currentObjectData->valid;
     doc["tracking"] = currentObjectData->tracking;
     doc["error"] = currentObjectData->error.c_str();
+    doc["servo_alt"] = currentObjectData->currAlt;
+    doc["servo_az"] = currentObjectData->currAz;
     portEXIT_CRITICAL(&dataMutex);
   }
   // Serialize JSON to a string

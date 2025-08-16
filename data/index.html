@@ -16,6 +16,7 @@
         .boolean-false { color: #e02c4d; font-weight: bold; }
         button { background-color: #1877f2; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background-color 0.2s; }
         button:hover { background-color: #166fe5; }
+        button:disabled {background-color: darkgrey;}
         .btn-stop { background-color: #e02c4d; }
         .btn-stop:hover { background-color: #c92442; }
         .calibration-grid { grid-template-columns: 1fr 1fr 1fr; }
@@ -38,17 +39,23 @@
             <span>Valid Data:</span>         <span id="valid">--</span>
         </div>
 
+        <h2>Servo data</h2>
+        <div class="data-grid">
+            <span>Servo Altitude:</span>         <span id="servo-alt">--</span>
+            <span>Servo Azimuth:</span>         <span id="servo-az">--</span>            
+        </div>
+
         <h2>Controls</h2>
         <div class="controls">
             <button id="trackingButton">Start Tracking</button>
         </div>
 
         <div id="calibrationSection">
-            <h2>Calibration</h2>
+            <h2 id="calibrationHeader">Calibration</h2>
             <div class="calibration-grid">
                 <span></span><button class="up" onclick="sendCalibrateCommand('up')">Up</button><span></span>
                 <button class="left" onclick="sendCalibrateCommand('left')">Left</button>
-                <button class="ok" onclick="sendCalibrateCommand('ok')">OK</button>
+                <button id="okButton" class="ok" onclick="sendCalibrateCommand('ok')">OK</button>
                 <button class="right" onclick="sendCalibrateCommand('right')">Right</button>
                 <span></span><button class="down" onclick="sendCalibrateCommand('down')">Down</button><span></span>
                 <!-- NEW SPEED BUTTON -->
@@ -96,20 +103,41 @@
                 document.getElementById('azimuth').textContent = '--';
             }
 
+            if (typeof data.servo_alt === 'number') {
+                document.getElementById('servo-alt').textContent = data.servo_alt.toFixed(2) + '°';
+            } else {
+                document.getElementById('servo-alt').textContent = '--';
+            }
+
+            if (typeof data.servo_az === 'number') {
+                document.getElementById('servo-az').textContent = data.servo_az.toFixed(2) + '°';
+            } else {
+                document.getElementById('servo-az').textContent = '--';
+            }
+
             document.getElementById('errorText').textContent = data.error;
 
             updateBooleanField('visible', data.visible);
             updateBooleanField('valid', data.valid);
             
             const trackingButton = document.getElementById('trackingButton');
+            const okButton = document.getElementById('okButton');
+            const directionButton = document.getElementById('directionButton');
             const calibrationSection = document.getElementById('calibrationSection');
+            const calibrationHeader = document.getElementById('calibrationHeader');
             if (data.tracking) {
                 trackingButton.textContent = 'Stop Tracking';
                 trackingButton.className = 'btn-stop';
+                okButton.disabled = true;
+                directionButton.disabled = true;
+                calibrationHeader.textContent = "Adjust calibration"
                 //calibrationSection.style.display = 'none';    // Always visible
             } else {
                 trackingButton.textContent = 'Start Tracking';
                 trackingButton.className = '';
+                okButton.disabled = false;
+                directionButton.disabled = false;
+                calibrationHeader.textContent = "Calibration"
                 //calibrationSection.style.display = 'block';   // Always visible
             }
         } catch (error) {

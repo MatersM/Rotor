@@ -10,7 +10,7 @@
 #include <stellarium.h>
 #include <rotorservo.h>
 
-#define VERSION "0.4.2 (16-AUG 2025)"
+#define VERSION "0.4.3 (16-AUG 2025)"
 
 extern "C" {
   #include "esp_wifi.h"
@@ -226,6 +226,8 @@ void loop() {
     bool tracking = data.tracking;
     data = getStellariumData();
     data.tracking = tracking;
+    data.currAlt = servoALT.getDegrees();
+    data.currAz = servoAZ.getDegrees();
     if (data.error!="") { // We couldn't retrieve data from Stellarium /* MJM TODO CHECK NOT SURE HOW THIS WORKS */
       errorTime = millis();
     } else
