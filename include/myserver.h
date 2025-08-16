@@ -10,13 +10,13 @@
 // WebServer object on port 80
 WebServer server(80);
 
-ObjectData currentObjectData;
+// Pointer to object data to be shown
+ObjectData *currentObjectData = nullptr;
 
 CalibrationData cData;
 
-/// @brief Helper function to copy data to the webserver code.
-/// @param data 
-void copyData(ObjectData &data) {
+
+void linkData (ObjectData *data) {
   currentObjectData = data;
 }
 
@@ -64,16 +64,17 @@ void handleData() {
   JsonDocument doc;
 
   // Use the mutex to safely read the shared data
-  portENTER_CRITICAL(&dataMutex);
-  doc["altitude"] = currentObjectData.altitude;
-  doc["azimuth"] = currentObjectData.azimuth;
-  doc["name"] = currentObjectData.name;
-  doc["visible"] = currentObjectData.visible;
-  doc["valid"] = currentObjectData.valid;
-  doc["tracking"] = currentObjectData.tracking;
-  doc["error"] = currentObjectData.error.c_str();
-  portEXIT_CRITICAL(&dataMutex);
-
+  if (currentObjectData) {
+    portENTER_CRITICAL(&dataMutex);
+    doc["altitude"] = currentObjectData->altitude;
+    doc["azimuth"] = currentObjectData->azimuth;
+    doc["name"] = currentObjectData->name;
+    doc["visible"] = currentObjectData->visible;
+    doc["valid"] = currentObjectData->valid;
+    doc["tracking"] = currentObjectData->tracking;
+    doc["error"] = currentObjectData->error.c_str();
+    portEXIT_CRITICAL(&dataMutex);
+  }
   // Serialize JSON to a string
   String jsonString;
   serializeJson(doc, jsonString);
@@ -85,13 +86,15 @@ void handleData() {
 // Handler to toggle tracking status
 void handleTracking() {
   // Use the mutex to safely write to the shared data
-  portENTER_CRITICAL(&dataMutex);
-  currentObjectData.tracking = !currentObjectData.tracking;
-  portEXIT_CRITICAL(&dataMutex);
-  if (tracking_callback)
-    tracking_callback(currentObjectData.tracking);
-  
-  Serial.printf("Tracking is now %s\n", currentObjectData.tracking ? "ON" : "OFF");
+  if (currentObjectData) {
+    portENTER_CRITICAL(&dataMutex);
+    currentObjectData->tracking = !currentObjectData->tracking;
+    portEXIT_CRITICAL(&dataMutex);
+    if (tracking_callback)
+      tracking_callback(currentObjectData->tracking);
+    
+    Serial.printf("Tracking is now %s\n", currentObjectData->tracking ? "ON" : "OFF");
+  }
   server.send(200, "text/plain", "OK");
 }
 

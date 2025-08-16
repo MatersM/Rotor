@@ -10,7 +10,7 @@
 #include <stellarium.h>
 #include <rotorservo.h>
 
-#define VERSION "0.4.1 (15-AUG 2025)"
+#define VERSION "0.4.2 (16-AUG 2025)"
 
 extern "C" {
   #include "esp_wifi.h"
@@ -187,6 +187,8 @@ void setup() {
       NULL,            // Task handle
       0);              // Pin to Core 0
 
+  // Give myserver Access to the data
+  linkData(&data);
 
   setupSucces = true;
   log_i("Setup() is complete. Main loop will run on Core 1. Server runs on Core 0");
@@ -258,8 +260,6 @@ void loop() {
     }
 
     if (!data.visible) data.tracking = false;
-    // Copy data to "server side"
-    copyData(data);
     lastCheck = millis();
   }
 }

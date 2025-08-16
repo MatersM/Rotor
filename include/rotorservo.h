@@ -10,15 +10,7 @@
 class RotorServo {
 
 public:
-    RotorServo() {
-        /* Moved to init
-        if (!EEPROM.begin(EEPROM_SIZE)) {
-            log_e("Failed to initialise EEPROM, the servo might jump");
-        } else {
-            log_d("Succesful to initialise EEPROM");
-        }
-        */
-    }
+    RotorServo() {}
 
     ~RotorServo() {
         if (_init) _servo.detach();
@@ -125,6 +117,7 @@ public:
             _targetPulse = _min;
             _errorString = "Target smaller than minimum";
             log_e("%s", _errorString.c_str());
+            if (!_smooth) _moveQuick();
             return false;
         }
 
@@ -132,6 +125,7 @@ public:
             _targetPulse = _max;
             _errorString = "Target greater than maximum";
             log_e("%s", _errorString.c_str());
+            if (!_smooth) _moveQuick();
             return false;
         }
 
@@ -290,12 +284,7 @@ public:
                 }
                 log_d("Servo on pin %d: %d",(int)_pin,_currentPulse);
                 _servo.writeMicroseconds(_currentPulse);
-                size_t s = EEPROM.writeInt(_eepromAddress, (int)_currentPulse);
-                if (EEPROM.commit()) {
-                    log_d("Writing %d to EEPROM address %d succes", _currentPulse, _eepromAddress);
-                } else {
-                    log_d("Writing %d to EEPROM address %d failed", _currentPulse, _eepromAddress);
-                }
+                _writeToEEPROM();
             }
             else if (_currentPulse > _targetPulse) {
                 _currentPulse -= stepSize;
@@ -304,12 +293,7 @@ public:
                 }
                 log_d("Servo on pin %d: %d",(int)_pin,_currentPulse);
                 _servo.writeMicroseconds(_currentPulse);
-                size_t s = EEPROM.writeInt(_eepromAddress, (int)_currentPulse);
-                if (EEPROM.commit()) {
-                    log_d("Writing %d to EEPROM address %d succes", _currentPulse, _eepromAddress);
-                } else {
-                    log_d("Writing %d to EEPROM address %d failed", _currentPulse, _eepromAddress);
-                }
+                _writeToEEPROM();
             }
 
         }
@@ -330,9 +314,19 @@ public:
 
 private:
 
+    void _writeToEEPROM() {
+        size_t s = EEPROM.writeInt(_eepromAddress, (int)_currentPulse);
+        if (EEPROM.commit()) {
+            log_d("Writing %d to EEPROM address %d succes", _currentPulse, _eepromAddress);
+        } else {
+            log_d("Writing %d to EEPROM address %d failed", _currentPulse, _eepromAddress);
+        }
+    }
+
     void _moveQuick() {
         _currentPulse = _targetPulse;
         _servo.writeMicroseconds(_currentPulse);
+        _writeToEEPROM();
     }
 
     ESP32ServoLite _servo;
