@@ -11,7 +11,7 @@
 #include <rotorservo.h>
 #include <satdump.h>
 
-#define VERSION "0.4.3 (16-AUG 2025)"
+#define VERSION "0.5.0 (22-AUG 2025)"
 
 extern "C" {
   #include "esp_wifi.h"
