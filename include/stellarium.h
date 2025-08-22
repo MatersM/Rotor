@@ -19,6 +19,8 @@ struct ObjectData {
   String error = "";
   // Current Servo direction
   float currAlt = 0.0, currAz = 0.0;
+  // What mode are we in
+  bool stellariumMode = false;
 };
 
 /// @brief Helper function, assumption is that only one device is connected to the AP

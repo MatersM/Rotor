@@ -9,6 +9,7 @@
 #include <objectData.h>
 #include <stellarium.h>
 #include <rotorservo.h>
+#include <satdump.h>
 
 #define VERSION "0.4.3 (16-AUG 2025)"
 
@@ -61,6 +62,8 @@ void readInitConfig() {
     log_i("SSID: %s", ssid);
     log_i("Password: %s", password);
 
+    data.stellariumMode = config.get("mode","STELLARIUM_MODE","0").toInt();
+
     // Read the servo stuff and init those as well
     auto eepromAddress = 0;
     auto pin      = config.get("pin","PIN_SERVO_ALT","0").toInt();
@@ -93,7 +96,7 @@ void readInitConfig() {
 void setupWiFiAP() {
   WiFi.softAP(ssid.c_str(), password.c_str());
   log_i("Access Point started");
-  log_i("IP address: %s", WiFi.softAPIP());
+  log_i("IP address: %s", WiFi.softAPIP().toString());
 }
 
 // Callback function for the server code
@@ -198,6 +201,9 @@ void loop() {
   static unsigned long lastCheck = 0;
   static unsigned long loopCounter = 0;
   
+
+//satDumpTest() ;
+
   loopCounter++;
   ledAction();
 
@@ -223,12 +229,39 @@ void loop() {
     log_i("ALT target=%0.2f (%4d)", servoALT.getDegrees(),  servoALT.getTarget());
 
     // Save if tracking and restore after getting new data
-    bool tracking = data.tracking;
-    data = getStellariumData();
-    data.tracking = tracking;
+    if (data.stellariumMode) {
+
+      bool tracking = data.tracking;
+      data = getStellariumData();
+      data.tracking = tracking;
+
+    } else {
+
+      // Satdump mode
+      auto satDump = handleSatDump(servoALT.getDegrees(),servoAZ.getDegrees());
+      float alt = std::get<0>(satDump); 
+      float az = std::get<1>(satDump); 
+
+      if (alt!=0.0 and az!=0.0) {
+        log_i("****** SATDUMP ******");
+        log_i("ALT = %0.2f",alt);
+        log_i("AZ  = %0.2f",az);
+        // Ah we have Satdump tracking
+        data.altitude = alt;
+        data.azimuth = az;
+        data.name = "<see Satdump>";
+        data.valid = true;
+        data.visible = alt>=0.0;
+        data.valid = true;
+        data.tracking = true; // Force tracking on
+      } else {
+        data.tracking = false;
+      }
+  }   // End SatDump stuff
+
     data.currAlt = servoALT.getDegrees();
     data.currAz = servoAZ.getDegrees();
-    if (data.error!="") { // We couldn't retrieve data from Stellarium /* MJM TODO CHECK NOT SURE HOW THIS WORKS */
+    if (data.error!="") { // We couldn't retrieve data from Stellarium
       errorTime = millis();
     } else
       data.error = errorString;

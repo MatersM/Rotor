@@ -28,7 +28,7 @@ void ledAction(LEDACTION led_action=ledDummy) {
     pinMode(LED_BUILTIN,OUTPUT);
     digitalWrite(LED_BUILTIN,LOW);
     init = true;
-    Serial.printf("Led pin: %d\n",LED_BUILTIN);
+    log_i("Led pin: %d",LED_BUILTIN);
   }
 
   if (led_action!=ledDummy) action = led_action;

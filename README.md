@@ -1,12 +1,23 @@
 # Introduction
 
 This is my Rotor project.  
-It is an ESP32 based Rotor controller that connects with Stellarium and can track objects.  
+It is an ESP32 based Rotor controller that connects with either SatDump or Stellarium and can track objects.  
 I'm using this with my SDR Antenna to track Satellites.
 
 # How does it work
 
-The ESP32 creates an Access Point and is a webserver at the same time.
+The ESP32 creates an Access Point and is a webserver at the same time. 
+Via a webbrowser you can control the rotor.
+
+## Satdump users
+
+Use host: 192.168.4.1  
+Port: 4533 (default)  
+  
+When using SatDump first allign the Rotor before start tracking in SatDump.
+
+## Stellarium users
+
 With your Laptop running Stellarium make sure the Remote Control Plugin is activated with the default port (8090) without username and password.
 Connect your Laptop to the Access Point and open a webbrowser and goto http://192.168.4.1 here you will see the controller.
 
